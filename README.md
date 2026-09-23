@@ -248,7 +248,7 @@ npm.cmd run build --prefix frontend
 
 [Открыть Hackalen в NVIDIA Brev](https://hackalen-dashboard-ijepqxvq4.gobrev.dev/)
 
-Сервис развёрнут на ARM64-инстансе NVIDIA Brev и защищён авторизацией платформы. Для доступа потребуется войти в разрешённый аккаунт Brev.
+Сервис развёрнут на ARM64-инстансе NVIDIA Brev. Ссылка открывается публично без авторизации для проверки жюри.
 
 ## Документация
 
