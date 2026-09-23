@@ -16,7 +16,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Annotated, Literal
 
-from fastapi import Depends, FastAPI, HTTPException, Path as APIPath, Query
+from fastapi import Depends, FastAPI, HTTPException, Path as APIPath, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, Response
 import numpy as np
@@ -28,6 +28,7 @@ from .export import CLUSTER_COLUMNS, NODE_COLUMNS, TOP_COLUMNS
 from .pipeline import AnalysisResult, input_fingerprint, run_analysis
 from .visualization import ROLE_COLORS, ROLE_LABELS, graph_node_ids, render_graph_html
 from .analyst_report import build_report, client_events, render_report_html
+from .ai_service import AIError, AIRequest, AIService
 
 
 IDENTIFIER_FIELDS = {"gid", "src", "dst"}
@@ -152,12 +153,37 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=["http://127.0.0.1:3000", "http://localhost:3000"],
         allow_credentials=False,
-        allow_methods=["GET"],
+        allow_methods=["GET", "POST"],
         allow_headers=["Accept", "Content-Type"],
         expose_headers=["Content-Disposition"],
     )
     cache = AnalysisCache()
     application.state.analysis_cache = cache
+    ai_service = AIService()
+    application.state.ai_service = ai_service
+
+    @application.get("/api/ai/status")
+    def ai_status():
+        return ai_service.status()
+
+    @application.post("/api/clients/{gid}/ai")
+    def explain_client(gid: str, body: AIRequest, request: Request):
+        from urllib.parse import urlsplit
+        origin = request.headers.get("origin")
+        if origin and urlsplit(origin).hostname not in {"localhost", "127.0.0.1", "::1"}:
+            raise HTTPException(403, detail="AI доступен из локального приложения.")
+        if request.headers.get("content-type", "").split(";")[0] != "application/json":
+            raise HTTPException(415, detail="Требуется application/json.")
+        result = cache.get()
+        selected_client(result, gid)
+        try:
+            answer = ai_service.explain(result, gid, body)
+        except AIError as exc:
+            raise HTTPException(exc.status, detail=str(exc)) from None
+        # Do not display an answer for a snapshot replaced during generation.
+        check_fingerprint(cache.get(), body.fingerprint)
+        return Response(json.dumps(json_safe(answer), ensure_ascii=False, allow_nan=False),
+                        media_type="application/json", headers={"Cache-Control": "no-store"})
 
     def analysis() -> AnalysisResult:
         return cache.get()

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/icon";
+import { AnalystAI } from "@/components/analyst-ai";
 import { ClientPatternsResult, GraphPatternSelection, Pattern, PatternDetail, PatternKind, formatNumber, request, shortDate } from "@/lib/types";
 
 const patternLabels: Record<PatternKind, string> = {
@@ -93,6 +94,7 @@ export function ClientPatterns({ gid, refresh, openClient, openPattern }: {
             {detailLoading ? <p role="status" className="patterns-loading"><span className="spinner"/>Загружаем исходные операции…</p> : detailError ? <div className="notice error" role="alert"><p>{detailError}</p><button className="button secondary" onClick={() => setRevision(value => value + 1)}>Обновить события</button></div> : detail?.pattern.pattern_id === pattern.pattern_id && <>
               <div className="pattern-detail-heading"><h3 ref={detailHeading} tabIndex={-1}>Основания события</h3><button className="button dark" onClick={() => openPattern({ pattern_id: detail.pattern.pattern_id, fingerprint: detail.fingerprint, title: detail.pattern.title, summary: detail.pattern.summary })}><Icon name="graph" size={16}/>Показать на графе</button></div>
               <PatternEvidence pattern={detail.pattern} selectedGid={gid} openClient={openClient}/>
+              <AnalystAI key={`${gid}-${detail.pattern.pattern_id}-${detail.fingerprint}`} gid={gid} fingerprint={detail.fingerprint} pattern={detail.pattern} openPattern={openPattern}/>
               <TransactionEvidence title="Исходные операции" transactions={detail.transactions} openClient={openClient}/>
               {!!detail.comparison_transactions?.length && <TransactionEvidence title="Операции других активных дней для сравнения" transactions={detail.comparison_transactions} openClient={openClient}/>}
             </>}
