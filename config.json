@@ -7,6 +7,21 @@
   "money_tolerance": 0.01,
   "normalization_quantile": 0.95,
   "temporal_window_days": 2,
+  "patterns": {
+    "burst_min_other_days": 5,
+    "burst_min_count": 5,
+    "burst_amount_min_count": 3,
+    "burst_multiplier": 3.0,
+    "group_min_payers": 3,
+    "group_min_repeats": 2,
+    "max_group_cores": 1000,
+    "route_min_repeats": 2,
+    "cycle_max_length": 4,
+    "max_route_candidates": 50000,
+    "max_cycle_candidates": 5000,
+    "max_cycle_search_steps": 100000,
+    "max_temporal_states": 100000
+  },
   "roles": {
     "consolidator_min_in": 3,
     "consolidator_min_seed": 2,

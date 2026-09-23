@@ -79,6 +79,8 @@ def render_graph_html(
     node_ids: set[str] | None = None,
     max_nodes: int | None = 180,
     height: int = 640,
+    event_edges: dict | None = None,
+    event_label: str | None = None,
 ) -> str:
     """Render a self-contained HTML document with all JS and CSS embedded.
 
@@ -120,8 +122,8 @@ def render_graph_html(
             f"<b>Клиент {html.escape(gid)}</b><br>"
             f"{html.escape(ROLE_LABELS.get(role, role))} · сообщество {int(row['cluster_id'])}<br>"
             f"Приоритет: {float(row.get('priority_score', 0)):.3f}<br>"
-            f"Вход: {float(row.get('in_kzt', 0)):,.2f} KZT<br>"
-            f"Выход: {float(row.get('out_kzt', 0)):,.2f} KZT<br>"
+            f"Вход за период: {float(row.get('in_kzt', 0)):,.2f} KZT<br>"
+            f"Выход за период: {float(row.get('out_kzt', 0)):,.2f} KZT<br>"
             f"Плательщиков: {int(row.get('in_deg', 0))} · получателей: {int(row.get('out_deg', 0))}<br>"
             f"{'Исходный seed · ' if seed else ''}{'Граница выгрузки · ' if boundary else ''}"
             f"{html.escape(note)}"
@@ -145,11 +147,18 @@ def render_graph_html(
             continue
         amount = float(attrs.get("sum_kzt", attrs.get("weight", 0)))
         transactions = int(attrs.get("n_tx", 0))
+        pair = (str(source), str(target))
+        if event_edges is not None:
+            if pair not in event_edges:
+                continue
+            amount = float(event_edges[pair]["sum_kzt"])
+            transactions = int(event_edges[pair]["n_tx"])
+        scope = "Операции выбранного события" if event_edges is not None else "Все операции за период"
         net.add_edge(
             str(source), str(target),
-            title=f"{html.escape(str(source))} → {html.escape(str(target))}<br>{amount:,.2f} KZT · {transactions} операций",
-            width=min(5.0, 0.7 + math.log10(1 + max(0, amount)) / 2),
-            color={"color": "#8498ac", "highlight": "#253b52", "hover": "#536f8b", "opacity": 0.88},
+            title=f"{html.escape(str(source))} → {html.escape(str(target))}<br>{scope}<br>{amount:,.2f} KZT · {transactions} операций",
+            width=4 if event_edges is not None else min(5.0, 0.7 + math.log10(1 + max(0, amount)) / 2),
+            color={"color": "#527bb9" if event_edges is not None else "#8498ac", "highlight": "#253b52", "hover": "#536f8b", "opacity": 0.88},
             arrows={"to": {"enabled": True, "scaleFactor": 1.15}},
         )
     options = {
@@ -160,6 +169,8 @@ def render_graph_html(
     }
     javascript, styles = _local_assets()
     stats = {"requested_nodes": len(wanted), "visible_nodes": len(visible), "hidden_nodes": hidden, "visible_edges": len(net.edges)}
+    event_caption = html.escape(event_label or "")
+    scope_caption = f"<br>{event_caption}<br>Рёбра: только операции события" if event_edges is not None else ""
     return f"""<!doctype html>
 <html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <style>{styles}</style><style>
@@ -202,12 +213,12 @@ div.vis-tooltip {{border:1px solid #fff;border-radius:14px;background:#fffffff5;
 <button class="close" onclick="document.getElementById('inspector').hidden=true" aria-label="Закрыть информацию об узле">×</button>
 <div class="eyebrow">Клиент сети</div><div id="detail-gid"></div><div id="detail-context"></div>
 <div class="role"><span id="detail-dot"></span><span id="detail-role"></span></div>
-<div class="detail-row"><span>Вход · KZT</span><strong id="detail-incoming"></strong></div>
-<div class="detail-row"><span>Выход · KZT</span><strong id="detail-outgoing"></strong></div>
+<div class="detail-row"><span>Вход за период · KZT</span><strong id="detail-incoming"></strong></div>
+<div class="detail-row"><span>Выход за период · KZT</span><strong id="detail-outgoing"></strong></div>
 <div class="detail-row detail-priority"><span>Приоритет проверки</span><strong id="detail-priority"></strong></div>
 <button class="primary open-client" id="open-client" onclick="openClient()" hidden>Открыть карточку</button>
 </section>
-<div class="footer"><div id="state"><strong>{len(visible)} узлов · {len(net.edges)} связей</strong><br>Скрыто по лимиту: {hidden}</div><div class="hint">Колесо — масштаб · потяните — перемещение<br>Нажмите на узел, чтобы увидеть детали</div></div>
+<div class="footer"><div id="state"><strong>{len(visible)} узлов · {len(net.edges)} связей</strong><br>Скрыто по лимиту: {hidden}{scope_caption}</div><div class="hint">Колесо — масштаб · потяните — перемещение<br>Нажмите на узел, чтобы увидеть детали</div></div>
 <script>{javascript}</script><script>
 window.moneyGraphStats = {_script_json(stats)};
 const graphData = {{nodes:new vis.DataSet({_script_json(net.nodes)}),edges:new vis.DataSet({_script_json(net.edges)})}};

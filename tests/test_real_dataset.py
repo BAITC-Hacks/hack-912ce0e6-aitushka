@@ -29,3 +29,13 @@ def test_original_dataset_sampled_centrality_and_results_are_reproducible(config
     assert_frame_equal(first.nodes, second.nodes, check_exact=True)
     assert_frame_equal(first.clusters, second.clusters, check_exact=True)
     assert_frame_equal(first.top_nodes, second.top_nodes, check_exact=True)
+    assert first.patterns == second.patterns
+    assert first.pattern_status == second.pattern_status
+    assert first.pattern_coverage == second.pattern_coverage
+    assert first.pattern_coverage["search_complete"]
+    assert all(set(event["evidence_refs"]) <= first.event_index.rows.keys() for event in first.patterns)
+    # The new explanation log must reconcile with the existing FIFO feature.
+    logged_fifo = {event["focus_gid"]: event["measurements"]["matched_kzt"]
+                  for event in first.patterns if event["kind"] == "transit_window"}
+    for row in first.nodes.itertuples(index=False):
+        assert logged_fifo.get(str(row.gid), 0.0) == pytest.approx(row.temporal_matched_kzt)

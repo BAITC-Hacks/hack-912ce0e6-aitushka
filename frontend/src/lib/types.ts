@@ -9,8 +9,9 @@ export interface Client {
   contribution_seed_convergence: number; contribution_observed_flow: number;
   contribution_brokerage: number; contribution_fan_in: number;
   temporal_matched_kzt: number; temporal_share: number;
+  pattern_count?: number;
 }
-export interface Edge { src: string; dst: string; sum_kzt: number; n_tx: number }
+export interface Edge { src: string; dst: string; sum_kzt: number; n_tx: number; first_date: string; last_date: string }
 export interface Transaction { src: string; dst: string; sum_kzt: number; date: string }
 export interface ClientDetails {
   client: Client; incoming: Edge[]; outgoing: Edge[];
@@ -24,8 +25,8 @@ export interface Overview {
   metadata: { input_fingerprint?: string; timings?: { total_seconds?: number }; temporal?: { window_days?: number }; [key: string]: unknown };
 }
 export interface ClientList { items: Client[]; total: number; role_counts?: Record<string, number> }
-export interface Filters { roles: string[]; clusters: string[]; seed: "all" | "seed" | "nonseed"; boundary: "all" | "boundary" | "internal" }
-export const emptyFilters: Filters = { roles: [], clusters: [], seed: "all", boundary: "all" };
+export interface Filters { roles: string[]; clusters: string[]; seed: "all" | "seed" | "nonseed"; boundary: "all" | "boundary" | "internal"; has_patterns: boolean }
+export const emptyFilters: Filters = { roles: [], clusters: [], seed: "all", boundary: "all", has_patterns: false };
 export const labels: Record<string, string> = { consolidator: "Консолидатор", transit: "Транзит", distributor: "Распределитель", terminal: "Конечный получатель", coordinator: "Координатор", peripheral: "Периферия" };
 export const colors: Record<string, string> = { consolidator: "#83b9e8", transit: "#87c8c9", distributor: "#d7b786", terminal: "#b3a4d7", coordinator: "#cf99a7", peripheral: "#bec7cf" };
 export function filterParams(filters: Filters) {
@@ -33,8 +34,25 @@ export function filterParams(filters: Filters) {
   if (filters.roles.length) query.set("roles", filters.roles.join(","));
   if (filters.clusters.length) query.set("clusters", filters.clusters.join(","));
   query.set("seed", filters.seed); query.set("boundary", filters.boundary);
+  if (filters.has_patterns) query.set("has_patterns", "true");
   return query;
 }
+
+export type PatternKind = "burst" | "group_receipts" | "repeated_group" | "transit_window" | "repeated_route" | "cycle";
+export interface PatternStep { src: string; dst: string; date: string; sum_kzt: number; n_tx: number; evidence_refs: string[] }
+export interface Pattern {
+  pattern_id: string; kind: PatternKind; focus_gid: string; gids: string[]; title: string; summary: string;
+  date_from: string; date_to: string; measurements: Record<string, unknown>; rule: Record<string, unknown>;
+  evidence_refs: string[]; edges: { src: string; dst: string }[];
+  episodes: { steps: PatternStep[] }[]; limitations: string[];
+}
+export interface ClientPatternsResult {
+  fingerprint: string; items: Pattern[]; total: number; kind_counts: Partial<Record<PatternKind, number>>;
+  status: { in_active_days: number; out_active_days: number; burst_history_sufficient: boolean | { incoming?: boolean; outgoing?: boolean; in?: boolean; out?: boolean }; notes: string[] };
+  coverage: { search_complete: boolean; [key: string]: unknown };
+}
+export interface PatternDetail { fingerprint: string; pattern: Pattern; transactions: (Transaction & { ref: string })[]; comparison_transactions?: (Transaction & { ref: string })[] }
+export interface GraphPatternSelection { pattern_id: string; fingerprint: string; title: string; summary: string }
 export const formatNumber = (n: number, digits = 0) => new Intl.NumberFormat("ru-RU", { maximumFractionDigits: digits, minimumFractionDigits: digits }).format(n);
 export const formatMoney = (n: number) => n >= 1e9 ? `${formatNumber(n / 1e9, 2)} млрд` : n >= 1e6 ? `${formatNumber(n / 1e6, 2)} млн` : formatNumber(n, 0);
 export const shortDate = (value: string | null) => value ? new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—";

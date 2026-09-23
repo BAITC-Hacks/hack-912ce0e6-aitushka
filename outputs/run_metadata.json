@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "created_at": "2026-09-23T09:13:12.939766+00:00",
-  "input_fingerprint": "004d67e4ce2a3dbf70f45ded8e396defd12c6d7fea2a1ff3ce97818a5473aa42",
+  "created_at": "2026-09-23T11:24:38.523002+00:00",
+  "input_fingerprint": "0a60bfbb2081a48d342a59cc76c0746219de2648c6a2f9a64ff1e4ab3e4fcd7d",
   "input_sha256": {
     "edges.parquet": "4e71dde5cd3115bcb26e91202665532ee6581cf8233a9fc8059ea59fb7358a38",
     "nodes.parquet": "d2a45b0df6e9352832d5fb09839d10b9e23f898156c3bab263b051b31cc0296d",
@@ -41,6 +41,21 @@
     "money_tolerance": 0.01,
     "normalization_quantile": 0.95,
     "temporal_window_days": 2,
+    "patterns": {
+      "burst_min_other_days": 5,
+      "burst_min_count": 5,
+      "burst_amount_min_count": 3,
+      "burst_multiplier": 3.0,
+      "group_min_payers": 3,
+      "group_min_repeats": 2,
+      "max_group_cores": 1000,
+      "route_min_repeats": 2,
+      "cycle_max_length": 4,
+      "max_route_candidates": 50000,
+      "max_cycle_candidates": 5000,
+      "max_cycle_search_steps": 100000,
+      "max_temporal_states": 100000
+    },
     "roles": {
       "consolidator_min_in": 3,
       "consolidator_min_seed": 2,
@@ -122,6 +137,40 @@
     "window_days": 2,
     "n_candidates": 297
   },
+  "patterns": {
+    "count": 974,
+    "clients_with_patterns": 1177,
+    "kind_counts": {
+      "burst": 133,
+      "cycle": 387,
+      "group_receipts": 66,
+      "repeated_group": 5,
+      "repeated_route": 86,
+      "transit_window": 297
+    },
+    "coverage": {
+      "search_complete": true,
+      "route_search_complete": true,
+      "cycle_search_complete": true,
+      "routes_evaluated": 11871,
+      "cycles_evaluated": 387,
+      "cycle_search_steps_used": 40211,
+      "temporal_states_used": 26044,
+      "limits_hit": [],
+      "limits": {
+        "max_route_candidates": 50000,
+        "max_cycle_candidates": 5000,
+        "max_cycle_search_steps": 100000,
+        "max_temporal_states": 100000,
+        "cycle_max_length": 4
+      },
+      "scope": "two_edge_routes_and_cycles_up_to_configured_length",
+      "cycle_episode_policy": "first_support_not_repeat_count",
+      "overlapping_patterns_are_additive": false,
+      "group_search_complete": true
+    },
+    "rules_version": 1
+  },
   "dependencies": {
     "pandas": "3.0.6",
     "numpy": "2.5.3",
@@ -136,11 +185,12 @@
     "Даты не определяют порядок операций внутри дня; FIFO показывает временную совместимость."
   ],
   "timings": {
-    "load_validate_seconds": 0.07289090000267606,
-    "features_seconds": 1.2485509000107413,
-    "communities_seconds": 0.12333319999743253,
-    "roles_ranking_seconds": 0.2883100999897579,
-    "total_seconds": 1.7515124000055948,
-    "cold_end_to_end_seconds": 2.4161923000065144
+    "load_validate_seconds": 0.08281839999835938,
+    "features_seconds": 1.3084019999951124,
+    "communities_seconds": 0.10288789999322034,
+    "roles_ranking_seconds": 0.2661113999929512,
+    "patterns_seconds": 0.20205879998684395,
+    "total_seconds": 1.9841137999901548,
+    "cold_end_to_end_seconds": 2.837449899991043
   }
 }

@@ -117,6 +117,9 @@ def test_client_detail_returns_exact_edge_ids_and_reconciled_daily_totals(api_cl
     assert len(body["outgoing"]) == 2
     for row in body["incoming"] + body["outgoing"] + body["transactions"]:
         assert isinstance(row["src"], str) and isinstance(row["dst"], str)
+    for edge in body["incoming"] + body["outgoing"]:
+        assert edge["first_date"] <= edge["last_date"]
+        assert edge["first_date"].startswith("2026-07-")
     assert sum(row["in_kzt"] for row in body["daily"]) == body["client"]["in_kzt"]
     assert sum(row["out_kzt"] for row in body["daily"]) == body["client"]["out_kzt"]
     assert len(body["daily"]) == 6

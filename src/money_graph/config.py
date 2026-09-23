@@ -41,6 +41,16 @@ def validate_config(config: dict) -> dict:
     order = config["role_tie_order"]
     if len(order) != len(ROLES) or set(order) != set(ROLES):
         raise ValueError("role_tie_order должен содержать все шесть ролей без повторов")
+    for name, value in config["patterns"].items():
+        if name == "burst_multiplier":
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 1:
+                raise ValueError("patterns.burst_multiplier должен быть конечным числом больше 1")
+        elif isinstance(value, bool) or not isinstance(value, int) or value < 1:
+            raise ValueError(f"patterns.{name}: требуется положительное целое число")
+    if not 2 <= config["patterns"]["cycle_max_length"] <= 4:
+        raise ValueError("patterns.cycle_max_length должен быть от 2 до 4")
+    if min(config["patterns"]["route_min_repeats"], config["patterns"]["group_min_repeats"]) < 2:
+        raise ValueError("Повторяемость должна требовать не менее двух эпизодов")
     return config
 
 

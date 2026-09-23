@@ -7,6 +7,7 @@ potentially stale files in that directory.
 """
 
 from collections.abc import Mapping
+from collections import Counter, defaultdict
 from datetime import date, datetime
 import json
 import math
@@ -26,6 +27,7 @@ from .config import ROOT, ROLES, load_config
 from .export import CLUSTER_COLUMNS, NODE_COLUMNS, TOP_COLUMNS
 from .pipeline import AnalysisResult, input_fingerprint, run_analysis
 from .visualization import ROLE_COLORS, ROLE_LABELS, graph_node_ids, render_graph_html
+from .analyst_report import build_report, client_events, render_report_html
 
 
 IDENTIFIER_FIELDS = {"gid", "src", "dst"}
@@ -95,6 +97,7 @@ def filter_query(
     clusters: Annotated[str, Query(max_length=10000)] = "",
     seed: SeedFilter = "all",
     boundary: BoundaryFilter = "all",
+    has_patterns: bool = False,
 ) -> dict:
     chosen_roles = [item.strip() for item in roles.split(",") if item.strip()]
     unknown = sorted(set(chosen_roles) - set(ROLES))
@@ -106,7 +109,7 @@ def filter_query(
         raise HTTPException(422, detail="clusters: нужны целые номера сообществ через запятую") from exc
     if any(cluster < 0 for cluster in chosen_clusters):
         raise HTTPException(422, detail="Номер сообщества не может быть отрицательным")
-    return {"roles": chosen_roles, "clusters": chosen_clusters, "seed": seed, "boundary": boundary}
+    return {"roles": chosen_roles, "clusters": chosen_clusters, "seed": seed, "boundary": boundary, "has_patterns": has_patterns}
 
 
 def filtered_nodes(result: AnalysisResult, filters: dict) -> pd.DataFrame:
@@ -119,6 +122,8 @@ def filtered_nodes(result: AnalysisResult, filters: dict) -> pd.DataFrame:
         frame = frame.loc[frame.is_seed.eq(filters["seed"] == "seed")]
     if filters["boundary"] != "all":
         frame = frame.loc[frame.truncated_by_depth.eq(filters["boundary"] == "boundary")]
+    if filters.get("has_patterns"):
+        frame = frame.loc[frame.pattern_count.gt(0)]
     return frame.sort_values(["priority_score", "gid"], ascending=[False, True], kind="stable")
 
 
@@ -127,6 +132,18 @@ def selected_client(result: AnalysisResult, gid: str) -> dict:
     if found.empty:
         raise HTTPException(404, detail=f"Клиент {gid} отсутствует в предоставленном наборе")
     return records(found)[0]
+
+
+def check_fingerprint(result: AnalysisResult, fingerprint: str | None):
+    if fingerprint is not None and fingerprint != result.metadata["input_fingerprint"]:
+        raise HTTPException(409, detail="Данные изменились. Обновите события клиента и повторите действие.")
+
+
+def selected_pattern(result: AnalysisResult, pattern_id: str) -> dict:
+    for pattern in result.patterns:
+        if pattern["pattern_id"] == pattern_id:
+            return pattern
+    raise HTTPException(404, detail="Событие не найдено. Обновите список событий клиента.")
 
 
 def create_app() -> FastAPI:
@@ -191,6 +208,12 @@ def create_app() -> FastAPI:
         tx = result.transactions
         incoming_tx = tx.loc[tx.dst.map(str).eq(gid)]
         outgoing_tx = tx.loc[tx.src.map(str).eq(gid)]
+        edge_dates = (tx.groupby(["src", "dst"], as_index=False)
+                      .agg(first_date=("date", "min"), last_date=("date", "max")))
+        edge_dates["first_date"] = pd.to_datetime(edge_dates["first_date"]).dt.strftime("%Y-%m-%d")
+        edge_dates["last_date"] = pd.to_datetime(edge_dates["last_date"]).dt.strftime("%Y-%m-%d")
+        incoming = incoming.merge(edge_dates, on=["src", "dst"], how="left", validate="one_to_one")
+        outgoing = outgoing.merge(edge_dates, on=["src", "dst"], how="left", validate="one_to_one")
         daily = pd.concat([
             incoming_tx.groupby("date").sum_kzt.sum().rename("in_kzt"),
             outgoing_tx.groupby("date").sum_kzt.sum().rename("out_kzt"),
@@ -222,6 +245,49 @@ def create_app() -> FastAPI:
                 "previous_gid": ordered[index - 1] if index > 0 else None,
                 "next_gid": ordered[index + 1] if index + 1 < total else None}
 
+    @application.get("/api/clients/{gid}/patterns")
+    def patterns(
+        gid: Annotated[str, APIPath(pattern=r"^-?\d+$", max_length=20)],
+        result: Annotated[AnalysisResult, Depends(analysis)],
+        kind: Literal["all", "burst", "group_receipts", "repeated_group", "transit_window", "repeated_route", "cycle"] = "all",
+        limit: Annotated[int, Query(ge=1, le=100)] = 50,
+        offset: Annotated[int, Query(ge=0)] = 0,
+        fingerprint: str | None = None,
+    ):
+        selected_client(result, gid)
+        check_fingerprint(result, fingerprint)
+        events = client_events(result, gid)
+        counts = dict(Counter(event["kind"] for event in events))
+        chosen = events if kind == "all" else [event for event in events if event["kind"] == kind]
+        return json_safe({"fingerprint": result.metadata["input_fingerprint"], "items": chosen[offset:offset + limit],
+                          "total": len(chosen), "kind_counts": counts, "status": result.pattern_status.get(gid, {}),
+                          "coverage": result.pattern_coverage})
+
+    @application.get("/api/patterns/{pattern_id}")
+    def pattern_detail(pattern_id: str, result: Annotated[AnalysisResult, Depends(analysis)], fingerprint: str | None = None):
+        check_fingerprint(result, fingerprint)
+        pattern = selected_pattern(result, pattern_id)
+        transactions = [result.event_index.rows[ref] for ref in pattern["evidence_refs"]]
+        transactions.sort(key=lambda row: (row["date"], int(row["src"]), int(row["dst"]), row["ref"]))
+        comparison_refs = {ref for day in pattern["measurements"].get("baseline", []) for ref in day["evidence_refs"]}
+        comparison_transactions = [result.event_index.rows[ref] for ref in sorted(comparison_refs)]
+        return json_safe({"fingerprint": result.metadata["input_fingerprint"], "pattern": pattern,
+                          "transactions": transactions, "comparison_transactions": comparison_transactions})
+
+    @application.get("/api/clients/{gid}/report")
+    def report(
+        gid: Annotated[str, APIPath(pattern=r"^-?\d+$", max_length=20)],
+        result: Annotated[AnalysisResult, Depends(analysis)],
+        format: Literal["html", "json"] = "html",
+        fingerprint: str | None = None,
+    ):
+        selected_client(result, gid)
+        check_fingerprint(result, fingerprint)
+        brief = build_report(result, gid)
+        payload = render_report_html(brief) if format == "html" else json.dumps(json_safe(brief), ensure_ascii=False, indent=2, allow_nan=False)
+        return Response(payload.encode("utf-8"), media_type="text/html" if format == "html" else "application/json",
+                        headers={"Content-Disposition": f'attachment; filename="client_{gid}_report.{format}"', "Cache-Control": "no-store"})
+
     @application.get("/api/graph", response_class=HTMLResponse)
     def graph(
         gid: Annotated[str, Query(pattern=r"^-?\d+$", max_length=20)],
@@ -231,9 +297,26 @@ def create_app() -> FastAPI:
         hops: Annotated[int, Query(ge=1, le=2)] = 1,
         color_by: Literal["role", "cluster"] = "role",
         full: bool = False,
+        pattern_id: str | None = None,
+        fingerprint: str | None = None,
     ):
         client = selected_client(result, gid)
-        if mode == "ego":
+        check_fingerprint(result, fingerprint)
+        pattern = selected_pattern(result, pattern_id) if pattern_id else None
+        event_edges = None
+        if pattern:
+            if gid not in pattern["gids"]:
+                raise HTTPException(422, detail="Выбранный клиент не участвует в этом событии.")
+            visible = set(pattern["gids"])
+            supported = {(edge["src"], edge["dst"]) for edge in pattern["edges"]}
+            sums = defaultdict(list)
+            for ref in pattern["evidence_refs"]:
+                row = result.event_index.rows[ref]
+                pair = (row["src"], row["dst"])
+                if pair in supported:
+                    sums[pair].append(row["sum_kzt"])
+            event_edges = {pair: {"sum_kzt": math.fsum(amounts), "n_tx": len(amounts)} for pair, amounts in sums.items()}
+        elif mode == "ego":
             visible = graph_node_ids(result.graph, gid, hops)
         elif mode == "community":
             visible = set(result.nodes.loc[result.nodes.cluster_id.eq(client["cluster_id"]), "gid"].map(str))
@@ -242,7 +325,8 @@ def create_app() -> FastAPI:
             visible = set(frame.gid.map(str)) | {gid}
         try:
             rendered = render_graph_html(result.graph, result.nodes, gid, color_by=color_by,
-                                         node_ids=visible, max_nodes=None if full else 180)
+                                         node_ids=visible, max_nodes=None if full or pattern else 180,
+                                         event_edges=event_edges, event_label=pattern["title"] if pattern else None)
         except Exception as exc:
             raise HTTPException(503, detail=f"Не удалось построить граф: {exc}") from exc
         return HTMLResponse(rendered, headers={"Cache-Control": "no-store"})
