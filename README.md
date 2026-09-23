@@ -134,7 +134,7 @@ docker compose up -d --build
 docker compose ps
 ```
 
-Приложение доступно на `http://localhost:3000`. Контейнер запускается без root, публикует только порт `3000` и проверяет полный путь `Next.js → FastAPI → анализ` через `/api/health`.
+Приложение доступно на `http://localhost:3000`. Контейнер запускается без root, публикует только порт `3000` и проверяет полный путь `Next.js → FastAPI → анализ` через `/api/health`. CI выпускает один multi-architecture образ для `linux/amd64` и `linux/arm64`.
 
 После успешного CI готовый образ публикуется как:
 
