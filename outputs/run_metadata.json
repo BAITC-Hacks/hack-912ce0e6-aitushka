@@ -1,0 +1,146 @@
+{
+  "version": "1.0.0",
+  "created_at": "2026-09-23T09:13:12.939766+00:00",
+  "input_fingerprint": "004d67e4ce2a3dbf70f45ded8e396defd12c6d7fea2a1ff3ce97818a5473aa42",
+  "input_sha256": {
+    "edges.parquet": "4e71dde5cd3115bcb26e91202665532ee6581cf8233a9fc8059ea59fb7358a38",
+    "nodes.parquet": "d2a45b0df6e9352832d5fb09839d10b9e23f898156c3bab263b051b31cc0296d",
+    "transactions.parquet": "c30c5317b5439591dde86f2058dc47a3d19b2900c055ded994fe547f6fb7e7da"
+  },
+  "data_summary": {
+    "n_nodes": 2248,
+    "n_edges": 3119,
+    "n_transactions": 4840,
+    "n_seed": 81,
+    "n_isolates": 19,
+    "sum_kzt": 365890012.01,
+    "date_min": "2026-07-01",
+    "date_max": "2026-07-31",
+    "depth_counts": {
+      "0": 81,
+      "1": 472,
+      "2": 462,
+      "3": 789,
+      "4": 444
+    },
+    "self_loop_edges": 0,
+    "identical_transaction_rows": 97,
+    "n_weak_components": 35,
+    "n_weak_components_with_edges": 16,
+    "n_truncated": 444,
+    "n_excess_outflow": 377,
+    "n_excess_outflow_with_incoming": 354,
+    "n_outflow_without_incoming": 23
+  },
+  "config": {
+    "random_seed": 42,
+    "community_resolution": 1.0,
+    "top_n": 20,
+    "max_depth": 4,
+    "betweenness_samples": 256,
+    "money_tolerance": 0.01,
+    "normalization_quantile": 0.95,
+    "temporal_window_days": 2,
+    "roles": {
+      "consolidator_min_in": 3,
+      "consolidator_min_seed": 2,
+      "distributor_min_out": 10,
+      "distributor_fan_ratio": 2.0,
+      "transit_min_ratio": 0.8,
+      "transit_max_ratio": 1.2,
+      "coordinator_quantile": 0.9,
+      "coordinator_min_seed": 2,
+      "coordinator_min_communities": 2
+    },
+    "priority_weights": {
+      "seed_convergence": 0.35,
+      "observed_flow": 0.25,
+      "brokerage": 0.25,
+      "fan_in": 0.15
+    },
+    "role_tie_order": [
+      "coordinator",
+      "consolidator",
+      "distributor",
+      "transit",
+      "terminal",
+      "peripheral"
+    ]
+  },
+  "normalization": {
+    "method": "min(x / quantile_positive, 1); zero preserved",
+    "quantile": 0.95,
+    "scales": {
+      "seed_convergence": 10.0,
+      "observed_flow": 1264438.7999999998,
+      "brokerage": 0.0017004917562729884,
+      "fan_in": 3.0
+    },
+    "weights": {
+      "seed_convergence": 0.35,
+      "observed_flow": 0.25,
+      "brokerage": 0.25,
+      "fan_in": 0.15
+    }
+  },
+  "role_parameters": {
+    "normalization_quantile": 0.95,
+    "normalization_scales": {
+      "in_deg": 3.0,
+      "out_deg": 16.350000000000023,
+      "in_kzt": 620722.5,
+      "seed_reach": 10.0,
+      "betweenness": 0.0017004917562729884
+    },
+    "coordinator_threshold": 0.0005151830891117378,
+    "tie_order": [
+      "coordinator",
+      "consolidator",
+      "distributor",
+      "transit",
+      "terminal",
+      "peripheral"
+    ]
+  },
+  "role_counts": {
+    "consolidator": 128,
+    "coordinator": 17,
+    "distributor": 56,
+    "peripheral": 937,
+    "terminal": 1050,
+    "transit": 60
+  },
+  "n_clusters": 88,
+  "betweenness": {
+    "directed": true,
+    "weight": null,
+    "sample_size": 256,
+    "random_seed": 42
+  },
+  "temporal": {
+    "method": "FIFO, earlier calendar days only, each amount consumed once",
+    "window_days": 2,
+    "n_candidates": 297
+  },
+  "dependencies": {
+    "pandas": "3.0.6",
+    "numpy": "2.5.3",
+    "pyarrow": "25.0.1",
+    "networkx": "3.7",
+    "scipy": "1.18.1"
+  },
+  "limitations": [
+    "Только внутрибанковские переводы от 5000 KZT за июль 2026; исходящие от seed, до 4 переходов.",
+    "Роли и приоритет — объяснимые гипотезы, не доказательство нарушения или вероятности виновности.",
+    "За границей выгрузки продолжение неизвестно; входящие и остатки наблюдаются неполно.",
+    "Даты не определяют порядок операций внутри дня; FIFO показывает временную совместимость."
+  ],
+  "timings": {
+    "load_validate_seconds": 0.07289090000267606,
+    "features_seconds": 1.2485509000107413,
+    "communities_seconds": 0.12333319999743253,
+    "roles_ranking_seconds": 0.2883100999897579,
+    "total_seconds": 1.7515124000055948,
+    "cold_end_to_end_seconds": 2.4161923000065144
+  }
+}

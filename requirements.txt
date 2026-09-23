@@ -1,0 +1,10 @@
+# Tested on Python 3.12.14. Direct dependencies are pinned for repeatable scoring.
+-c requirements-lock.txt
+pandas==3.0.6
+pyarrow==25.0.1
+numpy==2.5.3
+scipy==1.18.1
+networkx==3.7
+streamlit==1.64.0
+pyvis==0.3.2
+pytest==9.1.1

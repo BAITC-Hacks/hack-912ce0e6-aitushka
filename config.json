@@ -1,0 +1,28 @@
+{
+  "random_seed": 42,
+  "community_resolution": 1.0,
+  "top_n": 20,
+  "max_depth": 4,
+  "betweenness_samples": 256,
+  "money_tolerance": 0.01,
+  "normalization_quantile": 0.95,
+  "temporal_window_days": 2,
+  "roles": {
+    "consolidator_min_in": 3,
+    "consolidator_min_seed": 2,
+    "distributor_min_out": 10,
+    "distributor_fan_ratio": 2.0,
+    "transit_min_ratio": 0.8,
+    "transit_max_ratio": 1.2,
+    "coordinator_quantile": 0.9,
+    "coordinator_min_seed": 2,
+    "coordinator_min_communities": 2
+  },
+  "priority_weights": {
+    "seed_convergence": 0.35,
+    "observed_flow": 0.25,
+    "brokerage": 0.25,
+    "fan_in": 0.15
+  },
+  "role_tie_order": ["coordinator", "consolidator", "distributor", "transit", "terminal", "peripheral"]
+}
