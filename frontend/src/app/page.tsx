@@ -39,6 +39,7 @@ export default function Workspace() {
   const [moreLoading, setMoreLoading] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const [mobileNav, setMobileNav] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [graphMode, setGraphMode] = useState("ego");
   const [hops, setHops] = useState("1");
   const [colorBy, setColorBy] = useState("role");
@@ -70,6 +71,7 @@ export default function Workspace() {
     const initialView = params.get("view"); const initialGid = params.get("gid");
     if (navigation.some(item => item.key === initialView)) setView(initialView as View);
     if (initialGid && /^-?\d+$/.test(initialGid)) setSelected(initialGid);
+    setSidebarCollapsed(window.localStorage.getItem("money-graph-sidebar-collapsed") === "true");
     setUrlReady(true);
   }, []);
 
@@ -167,6 +169,13 @@ export default function Workspace() {
     window.scrollTo({ top: 0, behavior: "instant" });
     requestAnimationFrame(() => pageHeading.current?.focus());
   }
+  function toggleSidebar() {
+    setSidebarCollapsed(previous => {
+      const next = !previous;
+      window.localStorage.setItem("money-graph-sidebar-collapsed", String(next));
+      return next;
+    });
+  }
   function goBackClient() {
     const previous = history[history.length - 1];
     if (!previous) return;
@@ -188,19 +197,16 @@ export default function Workspace() {
   return <div className="workspace">
     <a className="skip-link" href="#main">Перейти к содержимому</a>
     {mobileNav && <button className="nav-scrim" aria-label="Закрыть меню" onClick={() => setMobileNav(false)} />}
-    <aside className={`sidebar ${mobileNav ? "open" : ""}`}>
-      <a href="?view=overview" className="brand" onClick={event => { event.preventDefault(); navigate("overview"); }}><span className="brand-mark"><Icon name="graph" size={24}/></span><span>Граф денег<small>AITUSHKA / ANALYTICS</small></span></a>
+    <aside className={`sidebar ${sidebarCollapsed ? "collapsed" : ""} ${mobileNav ? "open" : ""}`}>
+      <div className="sidebar-head"><a href="?view=overview" className="brand" aria-label="Граф денег — обзор" onClick={event => { event.preventDefault(); navigate("overview"); }}><span className="brand-mark"><Icon name="graph" size={24}/></span><span>Граф денег<small>АНАЛИТИКА СЕТИ</small></span></a><button className="sidebar-toggle" onClick={toggleSidebar} aria-label={sidebarCollapsed ? "Развернуть меню" : "Свернуть меню"} aria-expanded={!sidebarCollapsed} title={sidebarCollapsed ? "Развернуть меню" : "Свернуть меню"}><Icon name={sidebarCollapsed ? "chevron" : "left"} size={17}/></button></div>
       <div className="nav-label">РАБОЧЕЕ ПРОСТРАНСТВО</div>
-      <nav aria-label="Главное меню">{navigation.map(item => <button key={item.key} className={`nav-button ${view === item.key ? "active" : ""}`} aria-current={view === item.key ? "page" : undefined} onClick={() => navigate(item.key)}><Icon name={item.icon}/><span>{item.label}</span>{view === item.key && <span className="nav-active-dot"/>}</button>)}</nav>
-      <div className="sidebar-guide"><div className="nav-label">ПОРЯДОК ПРОВЕРКИ</div><p><span>01</span> Выберите клиента</p><p><span>02</span> Изучите основания</p><p><span>03</span> Проследите связи</p></div>
-      <details className="sidebar-help"><summary><Icon name="info" size={16}/> Как читать результаты</summary><p>Приоритет помогает выбрать следующую проверку. Роль и сообщество описывают наблюдаемую структуру и остаются гипотезами.</p><p>Исходные клиенты (seed) — точки, от которых собирали переводы.</p></details>
-      <div className="sidebar-bottom"><span className="local-dot"/>Локальное рабочее пространство<small>Данные остаются на вашем устройстве</small><div className="team-credit">Сделано командой <b>Aitushka</b><Icon name="upRight" size={14}/></div></div>
+      <nav aria-label="Главное меню">{navigation.map(item => <button key={item.key} className={`nav-button ${view === item.key ? "active" : ""}`} aria-current={view === item.key ? "page" : undefined} aria-label={item.label} title={sidebarCollapsed ? item.label : undefined} onClick={() => navigate(item.key)}><Icon name={item.icon}/><span>{item.label}</span>{view === item.key && <span className="nav-active-dot"/>}</button>)}</nav>
+      <div className="sidebar-bottom" title="Данные обрабатываются локально"><span className="local-dot"/><span>Данные обрабатываются локально</span></div>
     </aside>
 
     <main id="main" className="main-shell">
-      <div className="topbar"><div className="breadcrumb"><button className="mobile-menu icon-button" aria-label="Открыть меню" aria-expanded={mobileNav} onClick={() => setMobileNav(true)}><Icon name="menu"/></button><span>Рабочее пространство</span><Icon name="chevron" size={12}/><b>{navigation.find(item => item.key === view)?.label}</b></div><div className="topbar-status"><span className="status-dot"/>Наблюдаемая выборка <span className="avatar">А</span></div></div>
-      <header className="page-header"><div><div className="eyebrow">ФИНАНСОВАЯ СЕТЬ · АНАЛИТИКА</div><h1 ref={pageHeading} tabIndex={-1}>{headline} <span>{accent}</span></h1><p className="subtitle">{subtitle}</p></div><button className="icon-button refresh-button" onClick={() => setRefresh(value => value + 1)} aria-label="Обновить данные" title="Обновить данные"><Icon name="refresh"/></button></header>
-      <div className="context-line"><span className="status-dot"/>{summary ? `${shortDate(summary.date_min)} — ${shortDate(summary.date_max)}` : "Загружаем период наблюдения"}<span className="context-divider"/>{summary ? `${formatNumber(summary.n_transactions)} операций` : "Проверка данных"}{overview?.metadata.timings?.total_seconds != null && <><span className="context-divider"/><Icon name="clock" size={12}/>{formatNumber(overview.metadata.timings.total_seconds, 2)} с на расчёт</>}</div>
+      <header className="page-header"><div className="page-heading-row"><button className="mobile-menu icon-button" aria-label="Открыть меню" aria-expanded={mobileNav} onClick={() => setMobileNav(true)}><Icon name="menu"/></button><div><h1 ref={pageHeading} tabIndex={-1}>{headline} <span>{accent}</span></h1><p className="subtitle">{subtitle}</p></div></div><button className="icon-button refresh-button" onClick={() => setRefresh(value => value + 1)} aria-label="Обновить данные" title="Обновить данные"><Icon name="refresh"/></button></header>
+      <div className="context-line"><span className="status-dot"/>{summary ? `${shortDate(summary.date_min)} — ${shortDate(summary.date_max)}` : "Загружаем период наблюдения"}<span className="context-divider"/>{summary ? `${formatNumber(summary.n_transactions)} операций` : "Проверка данных"}</div>
 
       <div className="search-filter-row"><form className="search-form" onSubmit={search}><Icon name="search" size={18}/><input aria-label="Поиск клиента по gid" placeholder="Найти клиента по полному gid…" value={query} onChange={event => setQuery(event.target.value)} inputMode="numeric" autoComplete="off"/><button type="submit" className="search-submit" disabled={searching}>{searching ? "Ищем…" : "Найти"}<Icon name="arrow" size={15}/></button></form><button className={`filter-button ${activeCount ? "has-filters" : ""}`} onClick={() => setShowFilters(true)}><Icon name="filter" size={17}/>Фильтры{activeCount > 0 && <span>{activeCount}</span>}</button></div>
       {searchError && <div role="alert" className="notice error compact"><Icon name="info" size={16}/>{searchError}</div>}
@@ -209,7 +215,7 @@ export default function Workspace() {
 
       {view === "overview" && <>
         <div className="metrics-grid"><Metric label="Клиентов в сети" value={summary ? formatNumber(summary.n_nodes) : "—"} detail="Все участники выборки" icon="client" blue/><Metric label="Направленных связей" value={summary ? formatNumber(summary.n_edges) : "—"} detail="Уникальные пары переводов" icon="graph"/><Metric label="Наблюдаемый оборот" value={summary ? formatMoney(summary.sum_kzt) : "—"} detail="KZT · за весь период" icon="upRight"/><Metric label="Сообществ" value={summary ? formatNumber(summary.n_clusters) : "—"} detail="Группы связанных клиентов" icon="layers"/></div>
-        <div className="overview-grid"><section className="card queue-card"><div className="section-heading"><div><div className="eyebrow">ВАШ СЛЕДУЮЩИЙ ШАГ</div><h2>С чего начать проверку</h2><p>Приоритетные клиенты и основания для внимания</p></div><span className="count-pill">{formatNumber(list.total)} в срезе</span></div>
+        <div className="overview-grid"><section className="card queue-card"><div className="section-heading"><div><h2>Приоритет проверки</h2><p>Клиенты, требующие внимания в первую очередь</p></div><span className="count-pill">{formatNumber(list.total)} в срезе</span></div>
           {listLoading ? <QueueSkeleton/> : listError ? <ErrorPanel message={listError} retry={() => setRefresh(value => value + 1)}/> : list.total === 0 ? <EmptyState title="В этом срезе нет клиентов" description="Измените фильтры или найдите любой gid через глобальный поиск." action={() => setFilters(emptyFilters)} actionLabel="Сбросить фильтры"/> : <>
             <div className="queue-labels"><span>КЛИЕНТ / ГИПОТЕЗА РОЛИ</span><span>ПРИОРИТЕТ</span></div>
             <div className="queue-list">{visibleQueue.map((node, index) => <button className="queue-row" key={node.gid} onClick={() => openClient(node.gid)} title={node.why}><span className={`queue-rank ${index === 0 ? "first" : ""}`}>{String(index + 1).padStart(2, "0")}</span><span className="queue-person"><strong>{node.gid}</strong><span><i className="role-dot" style={{ background: colors[node.role] }}/>{labels[node.role]}{node.truncated_by_depth && <i className="boundary-mark" title="Граница выгрузки">◆</i>}</span></span><span className="queue-score">{formatNumber(node.priority_score, 3)}<span className="score-track"><i style={{ width: `${node.priority_score * 100}%` }}/></span></span><span className="queue-arrow"><Icon name="upRight" size={17}/></span></button>)}</div>
@@ -217,9 +223,7 @@ export default function Workspace() {
             {showAll && list.items.length < list.total && <button className="button secondary load-more" onClick={loadMore} disabled={moreLoading}>{moreLoading ? "Загружаем…" : "Показать ещё 50 клиентов"}</button>}
           </>}
           <div className="queue-footnote"><Icon name="info" size={14}/><span>Оценка 0–1 помогает выбрать следующую проверку и не является вероятностью нарушения.</span></div>
-        </section><div className="overview-side"><section className="card roles-card"><div className="section-heading"><div><h2>Структура сети</h2><p>Распределение ролей · вся выборка</p></div><span className="icon-disc"><Icon name="layers" size={17}/></span></div><div className="role-bars">{(overview?.roles || []).map(role => <div className="role-stat" key={role.role}><div><span><i className="role-dot" style={{ background: role.color }}/>{role.label}</span><b>{formatNumber(role.count)}</b></div><div className="role-bar-track"><i style={{ width: `${role.count / Math.max(...(overview?.roles || []).map(item => item.count), 1) * 100}%`, background: role.color }}/></div></div>)}</div></section>
-          <section className="export-teaser"><span className="export-ornament" aria-hidden="true"><Icon name="download" size={65}/></span><div className="eyebrow">ГОТОВО К РАБОТЕ</div><h2>От анализа<br/>к следующему шагу.</h2><p>Роли, сообщества и приоритеты<br/>в трёх готовых CSV.</p><button onClick={() => navigate("exports")}>Открыть выгрузки<Icon name="arrow" size={17}/></button></section>
-        </div></div>
+        </section><div className="overview-side"><section className="card roles-card"><div className="section-heading"><div><h2>Структура сети</h2><p>Распределение ролей по всей выборке</p></div><span className="icon-disc"><Icon name="layers" size={17}/></span></div><div className="role-bars">{(overview?.roles || []).map(role => <div className="role-stat" key={role.role}><div><span><i className="role-dot" style={{ background: role.color }}/>{role.label}</span><b>{formatNumber(role.count)}</b></div><div className="role-bar-track"><i style={{ width: `${role.count / Math.max(...(overview?.roles || []).map(item => item.count), 1) * 100}%`, background: role.color }}/></div></div>)}</div></section></div></div>
         <div className="boundary-summary"><span className="boundary-symbol"><Icon name="shield" size={19}/></span><div><b>{summary ? formatNumber(summary.boundary_count) : "—"} клиентов на границе наблюдения</b><p>Дальнейшие переводы за границей выгрузки неизвестны. Отсутствие исходящих связей не означает, что средства остановились.</p></div></div>
       </>}
 
@@ -237,7 +241,6 @@ export default function Workspace() {
       </>}
 
       {view === "exports" && <Exports overview={overview}/>}
-      <footer className="app-footer"><span>Граф денег <i/> Aitushka · 2026</span><span>Объяснимые гипотезы. Основания для следующей проверки.</span><span className="footer-local"><span className="status-dot"/>Вычисления на вашем устройстве</span></footer>
     </main>
     {showFilters && <FilterDialog filters={filters} overview={overview} apply={value => { setFilters(value); setShowFilters(false); }} close={() => setShowFilters(false)}/>}
   </div>;
