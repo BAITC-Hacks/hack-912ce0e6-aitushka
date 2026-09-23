@@ -8,4 +8,7 @@ tmp/
 .env
 .DS_Store
 __MACOSX/
-
+node_modules/
+.next/
+*.tsbuildinfo
+.env.local
