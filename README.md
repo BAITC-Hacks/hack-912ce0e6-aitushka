@@ -246,7 +246,9 @@ npm.cmd run build --prefix frontend
 
 ## Deployed-версия
 
-Постоянной публичной deployed-версии сейчас нет. Репозиторий содержит готовые Docker/Compose-конфигурации для NVIDIA Brev/DGX Cloud и workflow публикации GHCR-образа. После появления стабильного публичного URL его следует добавить в этот раздел.
+[Открыть Hackalen в NVIDIA Brev](https://hackalen-dashboard-ijepqxvq4.gobrev.dev/)
+
+Сервис развёрнут на ARM64-инстансе NVIDIA Brev и защищён авторизацией платформы. Для доступа потребуется войти в разрешённый аккаунт Brev.
 
 ## Документация
 
