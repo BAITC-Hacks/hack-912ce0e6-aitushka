@@ -194,3 +194,20 @@ def test_ai_http_contract_origin_scope_and_status(data_dir, monkeypatch):
         assert client.post("/api/clients/999/ai", json=body).status_code == 404
         assert client.post(f"/api/clients/{gid}/ai", json={**body, "question": "x" * 1501}).status_code == 422
         assert len(calls) == 1
+
+
+def test_ai_allows_explicit_deployment_origin(data_dir, monkeypatch):
+    monkeypatch.setenv("MONEY_GRAPH_DATA", str(data_dir))
+    monkeypatch.setenv("AI_ALLOWED_ORIGINS", "https://dashboard.example, https://second.example/")
+    app = create_app()
+    service, calls = service_with()
+    app.state.ai_service.provider = service.provider
+    app.state.ai_service.settings_loader = service.settings_loader
+    with TestClient(app) as client:
+        fp = client.get("/api/health").json()["fingerprint"]
+        response = client.post(
+            f"/api/clients/{2**53 + 2}/ai",
+            json={"fingerprint": fp, "mode": "explain"},
+            headers={"Origin": "https://dashboard.example"},
+        )
+    assert response.status_code == 200 and len(calls) == 1

@@ -1,0 +1,15 @@
+services:
+  dashboard:
+    build: .
+    image: ghcr.io/baitc-hacks/hack-912ce0e6-aitushka:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    init: true
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment:
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      OPENAI_MODEL: "${OPENAI_MODEL:-gpt-5.4-mini}"
+      AI_MAX_REQUESTS: "${AI_MAX_REQUESTS:-50}"
+      AI_ALLOWED_ORIGINS: "${AI_ALLOWED_ORIGINS:-http://localhost:3000}"
+    security_opt:
+      - no-new-privileges:true

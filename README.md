@@ -42,6 +42,43 @@ npm install --prefix frontend
 
 На Linux/macOS используйте `python3.12 -m venv .venv`, затем `.venv/bin/python` вместо `.\.venv\Scripts\python.exe`. После установки зависимостей для расчёта и просмотра локального графа интернет, API-ключи и платные сервисы не требуются. Первая установка требует доступа к реестрам Python/npm. Телеметрия Next.js отключается launcher через `NEXT_TELEMETRY_DISABLED=1`. Для команды без `--ui` Node.js не требуется.
 
+## Docker и NVIDIA Brev/DGX Cloud
+
+Production-образ содержит FastAPI, собранный Next.js и хакатонный набор данных. Он работает на `linux/amd64`, слушает один порт `3000`, запускается без root и имеет healthcheck. GPU не используется: дорогой GPU-инстанс для этой версии не нужен.
+
+После каждого push в `main` GitHub Actions запускает Python-тесты, typecheck и production-сборку Next.js. Только после их успеха собирается и публикуется образ:
+
+```text
+ghcr.io/baitc-hacks/hack-912ce0e6-aitushka:latest
+```
+
+На NVIDIA Brev откройте shell инстанса и выполните:
+
+```bash
+git clone https://github.com/BAITC-Hacks/hack-912ce0e6-aitushka.git
+cd hack-912ce0e6-aitushka
+cp .env.example .env
+# заполните OPENAI_API_KEY и, для публичного URL, AI_ALLOWED_ORIGINS
+docker compose pull
+docker compose up -d --no-build
+docker compose ps
+```
+
+Если GHCR-пакет ещё приватный, войдите через GitHub Personal Access Token с правом `read:packages`: `docker login ghcr.io -u thedids10`. Для запуска без GHCR используйте `docker compose up -d --build` — образ соберётся на инстансе.
+
+Для личного доступа используйте `brev port-forward ИМЯ_ИНСТАНСА --port 3000:3000` и откройте `http://localhost:3000`. Для демонстрации добавьте порт `3000` в Brev Console → Access → Using Tunnels. Полученный адрес укажите в `.env`, например `AI_ALLOWED_ORIGINS=https://полученный-домен`, затем выполните `docker compose up -d`. Без этой переменной аналитика работает, но публичный origin не сможет отправлять AI-запросы.
+
+Обновление развёрнутой версии:
+
+```bash
+git pull --ff-only
+docker compose pull
+docker compose up -d --no-build --remove-orphans
+docker image prune -f
+```
+
+Подробная инструкция, проверка состояния и откат находятся в [docs/DEPLOY_NVIDIA.md](docs/DEPLOY_NVIDIA.md).
+
 ## AI-помощник (по желанию)
 
 В карточке клиента доступны объяснение приоритета, вопросы по выбранным данным и черновик заключения с выгрузкой TXT. В раскрытом событии можно отдельно получить его объяснение. Каждый ответ разделён на наблюдения, гипотезы, ограничения и следующие шаги; кнопки F1, F2… открывают основания.
@@ -162,4 +199,5 @@ npm run build --prefix frontend
 - [Архитектурная схема](docs/architecture.md).
 - [Формулы и пороги](docs/METHODOLOGY.md).
 - [Аудит результатов и чувствительность параметров](docs/VALIDATION.md).
+- [Запуск контейнера в NVIDIA Brev/DGX Cloud](docs/DEPLOY_NVIDIA.md).
 - [Исходный roadmap](docs/IMPLEMENTATION_PLAN.md) — проектный документ, отражающий план до реализации.

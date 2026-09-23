@@ -168,10 +168,13 @@ def create_app() -> FastAPI:
 
     @application.post("/api/clients/{gid}/ai")
     def explain_client(gid: str, body: AIRequest, request: Request):
-        from urllib.parse import urlsplit
         origin = request.headers.get("origin")
-        if origin and urlsplit(origin).hostname not in {"localhost", "127.0.0.1", "::1"}:
-            raise HTTPException(403, detail="AI доступен из локального приложения.")
+        configured_origins = {
+            item.strip().rstrip("/") for item in os.environ.get("AI_ALLOWED_ORIGINS", "").split(",") if item.strip()
+        }
+        allowed_origins = {"http://localhost:3000", "http://127.0.0.1:3000"} | configured_origins
+        if origin and origin.rstrip("/") not in allowed_origins:
+            raise HTTPException(403, detail="Этот адрес приложения не разрешён для AI-запросов.")
         if request.headers.get("content-type", "").split(";")[0] != "application/json":
             raise HTTPException(415, detail="Требуется application/json.")
         result = cache.get()
